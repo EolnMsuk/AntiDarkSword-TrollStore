@@ -31,6 +31,9 @@ jobs:
           git checkout
           mv iPhoneOS16.5.sdk ${{ github.workspace }}/theos/sdks/
           
+      - name: Install Dependencies
+        run: brew install ldid
+          
       - name: Build Tweak
         run: |
           export THEOS="${{ github.workspace }}/theos"
