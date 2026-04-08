@@ -31,11 +31,28 @@ static BOOL shouldSpoofUA = NO;
 static NSString *customUAString = @"";
 
 // =========================================================
-// PREFERENCE LOADING
+// PREFERENCE LOADING & SMART DEFAULTS
 // =========================================================
 static void loadLocalPrefs() {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
     
+    // 1. FIRST RUN INITIALIZATION (Smart Defaults & iOS Detection)
+    if (![defaults boolForKey:@"ads_initialized"]) {
+        // Detect iOS major version
+        BOOL isIOS16OrGreater = [[NSProcessInfo processInfo] operatingSystemVersion].majorVersion >= 16;
+        
+        // Set Defaults: UA Spoofing ON (18.1), Correct JIT ON, everything else OFF
+        [defaults setBool:YES forKey:@"ads_spoofUA"];
+        [defaults setObject:@"Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1" forKey:@"ads_customUAString"];
+        
+        [defaults setBool:isIOS16OrGreater forKey:@"ads_disableJIT"];
+        [defaults setBool:!isIOS16OrGreater forKey:@"ads_disableJIT15"];
+        
+        [defaults setBool:YES forKey:@"ads_initialized"];
+        [defaults synchronize];
+    }
+    
+    // 2. LOAD STATE INTO MEMORY
     applyDisableJIT = [defaults boolForKey:@"ads_disableJIT"];
     applyDisableJIT15 = [defaults boolForKey:@"ads_disableJIT15"];
     applyDisableJS = [defaults boolForKey:@"ads_disableJS"];
@@ -53,7 +70,95 @@ static void loadLocalPrefs() {
 }
 
 // =========================================================
-// IN-APP SETTINGS UI (Triggered via 3-Finger Double Tap)
+// IN-APP SETTINGS UI (Native Table View)
+// =========================================================
+@interface ADSMenuViewController : UITableViewController
+@property (nonatomic, strong) NSArray *menuItems;
+@end
+
+@implementation ADSMenuViewController
+
+- (void)viewDidLoad {
+    [super viewDidLoad];
+    self.title = @"AntiDarkSword";
+    
+    if (@available(iOS 13.0, *)) {
+        self.view.backgroundColor = [UIColor systemGroupedBackgroundColor];
+    }
+    
+    // Add a Done button to close the menu
+    self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Done" style:UIBarButtonItemStyleDone target:self action:@selector(closeMenu)];
+    
+    self.menuItems = @[
+        @{@"title": @"Spoof User Agent", @"key": @"ads_spoofUA"},
+        @{@"title": @"Disable iOS 16+ JIT", @"key": @"ads_disableJIT"},
+        @{@"title": @"Disable iOS 15 JIT", @"key": @"ads_disableJIT15"},
+        @{@"title": @"Disable JavaScript ⚠︎", @"key": @"ads_disableJS"},
+        @{@"title": @"Disable WebGL & WebRTC", @"key": @"ads_disableRTC"},
+        @{@"title": @"Disable Media Auto-Play", @"key": @"ads_disableMedia"},
+        @{@"title": @"Disable Local File Access", @"key": @"ads_disableFileAccess"}
+    ];
+    
+    [self.tableView registerClass:[UITableViewCell class] forCellReuseIdentifier:@"Cell"];
+}
+
+- (void)closeMenu {
+    [self dismissViewControllerAnimated:YES completion:nil];
+}
+
+- (NSInteger)tableView:(UITableView *)tableView numberOfRowsInSection:(NSInteger)section {
+    return self.menuItems.count;
+}
+
+- (NSString *)tableView:(UITableView *)tableView titleForFooterInSection:(NSInteger)section {
+    return @"Changes require an app restart to fully apply to the WebKit engine.";
+}
+
+- (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
+    UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"Cell" forIndexPath:indexPath];
+    NSDictionary *item = self.menuItems[indexPath.row];
+    
+    cell.textLabel.text = item[@"title"];
+    cell.selectionStyle = UITableViewCellSelectionStyleNone;
+    
+    // Create the visual switch
+    UISwitch *toggle = [[UISwitch alloc] init];
+    toggle.on = [[NSUserDefaults standardUserDefaults] boolForKey:item[@"key"]];
+    toggle.tag = indexPath.row;
+    [toggle addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged];
+    
+    cell.accessoryView = toggle;
+    return cell;
+}
+
+// Handle switch toggles without closing the menu
+- (void)switchChanged:(UISwitch *)sender {
+    NSDictionary *item = self.menuItems[sender.tag];
+    NSString *key = item[@"key"];
+    BOOL isOn = sender.isOn;
+    
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    [defaults setBool:isOn forKey:key];
+    
+    // JS -> JIT Link Logic
+    if ([key isEqualToString:@"ads_disableJS"] && isOn) {
+        BOOL isIOS16OrGreater = [[NSProcessInfo processInfo] operatingSystemVersion].majorVersion >= 16;
+        if (isIOS16OrGreater) {
+            [defaults setBool:YES forKey:@"ads_disableJIT"];
+        } else {
+            [defaults setBool:YES forKey:@"ads_disableJIT15"];
+        }
+        // Reload table to visually update the JIT switch on screen
+        [self.tableView reloadData];
+    }
+    
+    [defaults synchronize];
+    loadLocalPrefs(); // Reload into tweak engine immediately
+}
+@end
+
+// =========================================================
+// MENU MANAGER
 // =========================================================
 @interface ADSMenuManager : NSObject
 + (instancetype)sharedManager;
@@ -78,51 +183,25 @@ static void loadLocalPrefs() {
     return topController;
 }
 
-- (void)togglePref:(NSString *)key currentVal:(BOOL)currentVal {
-    [[NSUserDefaults standardUserDefaults] setBool:!currentVal forKey:key];
-    [[NSUserDefaults standardUserDefaults] synchronize];
-    loadLocalPrefs();
-}
-
 - (void)showMenu {
     UIViewController *topVC = [self topViewController];
     if (!topVC) return;
-
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"AntiDarkSword" 
-                                                                   message:@"App-Specific Mitigations\n(Restart app to fully apply changes)" 
-                                                            preferredStyle:UIAlertControllerStyleActionSheet];
-
-    // Helper block to create toggles
-    void (^addToggle)(NSString *, NSString *, BOOL) = ^(NSString *title, NSString *key, BOOL currentState) {
-        NSString *fullTitle = [NSString stringWithFormat:@"%@ %@", currentState ? @"🟢" : @"🔴", title];
-        UIAlertAction *action = [UIAlertAction actionWithTitle:fullTitle style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-            [self togglePref:key currentVal:currentState];
-            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                [self showMenu]; // Re-open menu to show updated state
-            });
-        }];
-        [alert addAction:action];
-    };
-
-    addToggle(@"Spoof User Agent", @"ads_spoofUA", shouldSpoofUA);
-    addToggle(@"Disable iOS 16+ JIT", @"ads_disableJIT", applyDisableJIT);
-    addToggle(@"Disable iOS 15 JIT", @"ads_disableJIT15", applyDisableJIT15);
-    addToggle(@"Disable JavaScript ⚠︎", @"ads_disableJS", applyDisableJS);
-    addToggle(@"Disable WebGL & WebRTC", @"ads_disableRTC", applyDisableRTC);
-    addToggle(@"Disable Media Auto-Play", @"ads_disableMedia", applyDisableMedia);
-    addToggle(@"Disable Local File Access", @"ads_disableFileAccess", applyDisableFileAccess);
-
-    UIAlertAction *close = [UIAlertAction actionWithTitle:@"Close" style:UIAlertActionStyleCancel handler:nil];
-    [alert addAction:close];
-
-    // iPad support for ActionSheets
-    if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad) {
-        alert.popoverPresentationController.sourceView = topVC.view;
-        alert.popoverPresentationController.sourceRect = CGRectMake(topVC.view.bounds.size.width / 2.0, topVC.view.bounds.size.height / 2.0, 1.0, 1.0);
-        alert.popoverPresentationController.permittedArrowDirections = 0;
+    
+    // Wrap the TableView in a Navigation Controller so it has a top bar for the Done button
+    ADSMenuViewController *menuVC = [[ADSMenuViewController alloc] initWithStyle:UITableViewStyleGrouped];
+    UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:menuVC];
+    
+    // Present as a native sliding sheet
+    if (@available(iOS 15.0, *)) {
+        navController.modalPresentationStyle = UIModalPresentationPageSheet;
+        if ([navController.sheetPresentationController respondsToSelector:@selector(setDetents:)]) {
+            navController.sheetPresentationController.detents = @[[UISheetPresentationControllerDetent mediumDetent], [UISheetPresentationControllerDetent largeDetent]];
+        }
+    } else {
+        navController.modalPresentationStyle = UIModalPresentationFormSheet;
     }
-
-    [topVC presentViewController:alert animated:YES completion:nil];
+    
+    [topVC presentViewController:navController animated:YES completion:nil];
 }
 @end
 
