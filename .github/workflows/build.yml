@@ -5,7 +5,11 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch: # Allows you to trigger the build manually
+  workflow_dispatch: 
+
+# Gives the action permission to post to the Releases tab
+permissions:
+  contents: write 
 
 jobs:
   build:
@@ -40,10 +44,25 @@ jobs:
           make clean
           make FINALPACKAGE=1
           
+      # Extracts the file from the hidden folder to make the next steps flawless
+      - name: Move Dylib to Workspace
+        run: find .theos/obj -name "*.dylib" -exec cp {} . \;
+          
       - name: Upload Dylib Artifact
         uses: actions/upload-artifact@v4
         with:
           name: AntiDarkSwordUI.dylib
-          path: "**/.theos/obj/**/*.dylib" 
-          include-hidden-files: true  # Fix
+          path: "*.dylib" 
           if-no-files-found: error
+
+      # Automatically creates/updates the Release on GitHub
+      - name: Create Auto-Release
+        # Only run this step if the build was triggered by a push to the main branch
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Latest TrollStore Build"
+          body: "Automated build compiled directly from the main branch. Download the `.dylib` below and inject using TrollFools."
+          prerelease: true
+          files: "*.dylib"
