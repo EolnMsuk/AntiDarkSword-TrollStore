@@ -1,0 +1,46 @@
+name: Build AntiDarkSword (TrollStore)
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch: # Allows you to trigger the build manually
+
+jobs:
+  build:
+    name: Compile Dylib
+    runs-on: macos-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup Theos
+        uses: actions/checkout@v4
+        with:
+          repository: theos/theos
+          path: theos
+          submodules: recursive
+          
+      - name: Download iOS SDK
+        run: |
+          git clone -n --depth=1 --filter=tree:0 https://github.com/theos/sdks.git
+          cd sdks
+          git sparse-checkout set --no-cone iPhoneOS16.5.sdk
+          git checkout
+          mv iPhoneOS16.5.sdk ${{ github.workspace }}/theos/sdks/
+          
+      - name: Build Tweak
+        run: |
+          export THEOS="${{ github.workspace }}/theos"
+          make clean
+          make FINALPACKAGE=1
+          
+      - name: Upload Dylib Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AntiDarkSwordUI.dylib
+          # Captures the compiled dylib regardless of the exact subdirectory
+          path: "**/.theos/obj/**/*.dylib" 
+          if-no-files-found: error
