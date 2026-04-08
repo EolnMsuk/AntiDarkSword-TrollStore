@@ -44,6 +44,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: AntiDarkSwordUI.dylib
-          # Captures the compiled dylib regardless of the exact subdirectory
           path: "**/.theos/obj/**/*.dylib" 
+          include-hidden-files: true  # Fix
           if-no-files-found: error
