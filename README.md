@@ -1,4 +1,4 @@
-<img width="1248" height="988" alt="Gemini_Generated_Image_b05lfxb05lfxb05l" src="https://github.com/user-attachments/assets/4b273aff-55dc-48bb-b9d6-1c1482222f82" />
+<img width="1248" height="919" alt="ReadMe" src="https://github.com/user-attachments/assets/c23ff3d1-2baa-48af-a420-d8d648a7ba67" />
 
 # AntiDarkSword ⚔️ (TrollStore Edition)
 
