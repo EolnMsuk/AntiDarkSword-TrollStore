@@ -1,0 +1,9 @@
+include $(THEOS)/makefiles/common.mk
+
+TWEAK_NAME = AntiDarkSwordUI
+AntiDarkSwordUI_FILES = Tweak.x
+AntiDarkSwordUI_CFLAGS = -fobjc-arc -Wno-deprecated-declarations
+AntiDarkSwordUI_FRAMEWORKS = Foundation UIKit WebKit JavaScriptCore
+AntiDarkSwordUI_INSTALL_PATH = /Library/MobileSubstrate/DynamicLibraries
+
+include $(THEOS_MAKE_PATH)/tweak.mk
