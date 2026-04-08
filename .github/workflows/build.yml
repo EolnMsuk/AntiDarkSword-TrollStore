@@ -7,7 +7,6 @@ on:
     branches: [ main ]
   workflow_dispatch: 
 
-# Gives the action permission to post to the Releases tab
 permissions:
   contents: write 
 
@@ -55,14 +54,14 @@ jobs:
           path: "*.dylib" 
           if-no-files-found: error
 
-      # Automatically creates/updates the Release on GitHub
+      # Creates a formal, numbered release on the repo homepage
       - name: Create Auto-Release
-        # Only run this step if the build was triggered by a push to the main branch
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          name: "Latest TrollStore Build"
+          tag_name: build-${{ github.run_number }}
+          name: "AntiDarkSword (TrollStore) - Build ${{ github.run_number }}"
           body: "Automated build compiled directly from the main branch. Download the `.dylib` below and inject using TrollFools."
-          prerelease: true
+          prerelease: false
+          make_latest: true
           files: "*.dylib"
