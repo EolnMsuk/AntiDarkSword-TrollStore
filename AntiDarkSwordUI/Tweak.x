@@ -86,6 +86,14 @@ static void loadLocalPrefs() {
         self.view.backgroundColor = [UIColor systemGroupedBackgroundColor];
     }
     
+    // Fix the weird gap between the navigation bar and the first cell
+    self.tableView.tableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, CGFLOAT_MIN)];
+    self.tableView.sectionHeaderHeight = 10;
+    
+    // Add extra padding at the very bottom so it feels breathable
+    UIView *footerSpacer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 40)];
+    self.tableView.tableFooterView = footerSpacer;
+    
     // Add a Done button to close the menu
     self.navigationItem.rightBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"Done" style:UIBarButtonItemStyleDone target:self action:@selector(closeMenu)];
     
@@ -117,15 +125,42 @@ static void loadLocalPrefs() {
 - (UITableViewCell *)tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
     UITableViewCell *cell = [tableView dequeueReusableCellWithIdentifier:@"Cell" forIndexPath:indexPath];
     NSDictionary *item = self.menuItems[indexPath.row];
+    NSString *key = item[@"key"];
     
     cell.textLabel.text = item[@"title"];
     cell.selectionStyle = UITableViewCellSelectionStyleNone;
     
+    // Reset to default text color to prevent recycling bugs
+    if (@available(iOS 13.0, *)) {
+        cell.textLabel.textColor = [UIColor labelColor];
+    } else {
+        cell.textLabel.textColor = [UIColor blackColor];
+    }
+    
     // Create the visual switch
     UISwitch *toggle = [[UISwitch alloc] init];
-    toggle.on = [[NSUserDefaults standardUserDefaults] boolForKey:item[@"key"]];
+    toggle.on = [[NSUserDefaults standardUserDefaults] boolForKey:key];
     toggle.tag = indexPath.row;
     [toggle addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged];
+    
+    // --- SMART iOS GREY-OUT LOGIC ---
+    BOOL isIOS16OrGreater = [[NSProcessInfo processInfo] operatingSystemVersion].majorVersion >= 16;
+    
+    if ([key isEqualToString:@"ads_disableJIT"] && !isIOS16OrGreater) {
+        // User is on iOS 15, disable the iOS 16 switch
+        toggle.enabled = NO;
+        toggle.on = NO; 
+        if (@available(iOS 13.0, *)) cell.textLabel.textColor = [UIColor secondaryLabelColor];
+        else cell.textLabel.textColor = [UIColor grayColor];
+    } 
+    else if ([key isEqualToString:@"ads_disableJIT15"] && isIOS16OrGreater) {
+        // User is on iOS 16+, disable the iOS 15 switch
+        toggle.enabled = NO;
+        toggle.on = NO;
+        if (@available(iOS 13.0, *)) cell.textLabel.textColor = [UIColor secondaryLabelColor];
+        else cell.textLabel.textColor = [UIColor grayColor];
+    }
+    // --------------------------------
     
     cell.accessoryView = toggle;
     return cell;
@@ -148,7 +183,7 @@ static void loadLocalPrefs() {
         } else {
             [defaults setBool:YES forKey:@"ads_disableJIT15"];
         }
-        // Reload table to visually update the JIT switch on screen
+        // Reload table to visually update the correct JIT switch on screen
         [self.tableView reloadData];
     }
     
@@ -187,15 +222,31 @@ static void loadLocalPrefs() {
     UIViewController *topVC = [self topViewController];
     if (!topVC) return;
     
-    // Wrap the TableView in a Navigation Controller so it has a top bar for the Done button
-    ADSMenuViewController *menuVC = [[ADSMenuViewController alloc] initWithStyle:UITableViewStyleGrouped];
+    // --- PREVENT MULTIPLE WINDOWS FROM OPENING ---
+    if ([topVC isKindOfClass:[UINavigationController class]]) {
+        if ([[(UINavigationController *)topVC viewControllers].firstObject isKindOfClass:[ADSMenuViewController class]]) {
+            return; // The menu is already open, ignore the tap
+        }
+    }
+    // ---------------------------------------------
+    
+    ADSMenuViewController *menuVC;
+    if (@available(iOS 13.0, *)) {
+        // Modern rounded table style
+        menuVC = [[ADSMenuViewController alloc] initWithStyle:UITableViewStyleInsetGrouped];
+    } else {
+        menuVC = [[ADSMenuViewController alloc] initWithStyle:UITableViewStyleGrouped];
+    }
+    
     UINavigationController *navController = [[UINavigationController alloc] initWithRootViewController:menuVC];
     
-    // Present as a native sliding sheet
+    // Present as a native sliding sheet and force it fully open
     if (@available(iOS 15.0, *)) {
         navController.modalPresentationStyle = UIModalPresentationPageSheet;
         if ([navController.sheetPresentationController respondsToSelector:@selector(setDetents:)]) {
-            navController.sheetPresentationController.detents = @[[UISheetPresentationControllerDetent mediumDetent], [UISheetPresentationControllerDetent largeDetent]];
+            // Force it to pop up all the way so the footer isn't cut off
+            navController.sheetPresentationController.detents = @[[UISheetPresentationControllerDetent largeDetent]];
+            navController.sheetPresentationController.prefersGrabberVisible = YES;
         }
     } else {
         navController.modalPresentationStyle = UIModalPresentationFormSheet;
