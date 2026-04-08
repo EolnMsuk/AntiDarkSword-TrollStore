@@ -143,24 +143,41 @@ static void loadLocalPrefs() {
     toggle.tag = indexPath.row;
     [toggle addTarget:self action:@selector(switchChanged:) forControlEvents:UIControlEventValueChanged];
     
-    // --- SMART iOS GREY-OUT LOGIC ---
+    // --- SMART iOS & JS DEPENDENCY LOGIC ---
     BOOL isIOS16OrGreater = [[NSProcessInfo processInfo] operatingSystemVersion].majorVersion >= 16;
+    BOOL isJSDisabled = [[NSUserDefaults standardUserDefaults] boolForKey:@"ads_disableJS"];
     
-    if ([key isEqualToString:@"ads_disableJIT"] && !isIOS16OrGreater) {
-        // User is on iOS 15, disable the iOS 16 switch
-        toggle.enabled = NO;
-        toggle.on = NO; 
-        if (@available(iOS 13.0, *)) cell.textLabel.textColor = [UIColor secondaryLabelColor];
-        else cell.textLabel.textColor = [UIColor grayColor];
+    if ([key isEqualToString:@"ads_disableJIT"]) {
+        if (!isIOS16OrGreater) {
+            // User is on iOS 15, entirely disable the iOS 16 switch
+            toggle.enabled = NO;
+            toggle.on = NO; 
+            if (@available(iOS 13.0, *)) cell.textLabel.textColor = [UIColor secondaryLabelColor];
+            else cell.textLabel.textColor = [UIColor grayColor];
+        } else if (isJSDisabled) {
+            // User is on iOS 16+ and JS is disabled: Lock JIT switch ON
+            toggle.enabled = NO;
+            toggle.on = YES;
+            if (@available(iOS 13.0, *)) cell.textLabel.textColor = [UIColor secondaryLabelColor];
+            else cell.textLabel.textColor = [UIColor grayColor];
+        }
     } 
-    else if ([key isEqualToString:@"ads_disableJIT15"] && isIOS16OrGreater) {
-        // User is on iOS 16+, disable the iOS 15 switch
-        toggle.enabled = NO;
-        toggle.on = NO;
-        if (@available(iOS 13.0, *)) cell.textLabel.textColor = [UIColor secondaryLabelColor];
-        else cell.textLabel.textColor = [UIColor grayColor];
+    else if ([key isEqualToString:@"ads_disableJIT15"]) {
+        if (isIOS16OrGreater) {
+            // User is on iOS 16+, entirely disable the iOS 15 switch
+            toggle.enabled = NO;
+            toggle.on = NO;
+            if (@available(iOS 13.0, *)) cell.textLabel.textColor = [UIColor secondaryLabelColor];
+            else cell.textLabel.textColor = [UIColor grayColor];
+        } else if (isJSDisabled) {
+            // User is on iOS 15 and JS is disabled: Lock JIT switch ON
+            toggle.enabled = NO;
+            toggle.on = YES;
+            if (@available(iOS 13.0, *)) cell.textLabel.textColor = [UIColor secondaryLabelColor];
+            else cell.textLabel.textColor = [UIColor grayColor];
+        }
     }
-    // --------------------------------
+    // ---------------------------------------
     
     cell.accessoryView = toggle;
     return cell;
@@ -176,14 +193,18 @@ static void loadLocalPrefs() {
     [defaults setBool:isOn forKey:key];
     
     // JS -> JIT Link Logic
-    if ([key isEqualToString:@"ads_disableJS"] && isOn) {
+    if ([key isEqualToString:@"ads_disableJS"]) {
         BOOL isIOS16OrGreater = [[NSProcessInfo processInfo] operatingSystemVersion].majorVersion >= 16;
-        if (isIOS16OrGreater) {
-            [defaults setBool:YES forKey:@"ads_disableJIT"];
-        } else {
-            [defaults setBool:YES forKey:@"ads_disableJIT15"];
+        
+        // If turning JS ON, force the correct JIT to ON as well
+        if (isOn) {
+            if (isIOS16OrGreater) {
+                [defaults setBool:YES forKey:@"ads_disableJIT"];
+            } else {
+                [defaults setBool:YES forKey:@"ads_disableJIT15"];
+            }
         }
-        // Reload table to visually update the correct JIT switch on screen
+        // Always reload the table when JS is toggled so the JIT switch locks/unlocks visually
         [self.tableView reloadData];
     }
     
