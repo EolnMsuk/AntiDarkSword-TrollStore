@@ -1,3 +1,5 @@
+<img width="1280" height="1220" alt="ReadMe" src="https://github.com/user-attachments/assets/c6aaa228-ffe2-4daf-b3c2-bc3b772ea2c2" />
+
 # AntiDarkSword ⚔️ (TrollStore Edition)
 
 AntiDarkSword is an advanced iOS security framework designed to mitigate zero-click payloads and browser RCEs through granular WebKit isolation. 
