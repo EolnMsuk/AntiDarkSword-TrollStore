@@ -16,7 +16,7 @@ This specific build has been completely re-architected as a standalone dynamic l
 
 ## 🚀 How to Install & Use (TrollFools Method)
 
-Because this version operates without a jailbreak, it relies on static injection. You will need to use a tool like [TrollFools](https://github.com/Lessica/TrollFools) to physically inject the security framework into your desired apps.
+Because this version operates without a jailbreak, it relies on static injection. You will need to use a tool like [TrollFools](https://github.com/Lessica/TrollFools/releases/download/v4.2-227/TrollFools_4.2-227.tipa) to physically inject the security framework into your desired apps.
 
 1. **Download the Target App:** Download the official, unmodified app you want to protect (e.g., Chrome, Discord, Facebook, WhatsApp) directly from the Apple App Store.
 2. **Download AntiDarkSword:** Grab the latest `AntiDarkSwordUI.dylib` from the [**Releases**](https://github.com/EolnMsuk/AntiDarkSword-TrollStore/releases) tab of this repository.
