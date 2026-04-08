@@ -86,9 +86,11 @@ static void loadLocalPrefs() {
         self.view.backgroundColor = [UIColor systemGroupedBackgroundColor];
     }
     
-    // Fix the weird gap between the navigation bar and the first cell
-    self.tableView.tableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, CGFLOAT_MIN)];
+    // --- PADDING UPDATE ---
+    // Added 25pts of breathing room under the Navigation Bar
+    self.tableView.tableHeaderView = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 25)];
     self.tableView.sectionHeaderHeight = 10;
+    // ----------------------
     
     // Add extra padding at the very bottom so it feels breathable
     UIView *footerSpacer = [[UIView alloc] initWithFrame:CGRectMake(0, 0, 0, 40)];
