@@ -51,7 +51,7 @@ By disabling WebKit JIT and JavaScriptCore attack vectors inside your injected a
 **In short:** The TrollStore edition acts as a localized shield for specific 3rd-party browsers and messengers. The Jailbreak edition acts as an umbrella over your entire operating system.
 
 ### 🔗 Official Jailbreak Releases
-For maximum device security, please use the standard tweaks if you are jailbroken: **[AntiDarkSword (Rootless / Rootful)](https://github.com/EolnMsuk/AntiDarkSword)** - For iOS 15.0 – 17.0
+For maximum device security, please use this if jailbroken: **[AntiDarkSword (Rootless / Rootful)](https://github.com/EolnMsuk/AntiDarkSword)** - For iOS 15.0 – 17.0
 
 -----
 
