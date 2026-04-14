@@ -63,5 +63,6 @@ jobs:
           name: "AntiDarkSword (TrollStore) - Build ${{ github.run_number }}"
           body: "Automated build compiled directly from the main branch. Download the `.dylib` below and inject using TrollFools."
           prerelease: false
-          make_latest: true
+          make_latest: false
+          draft: true
           files: "*.dylib"
