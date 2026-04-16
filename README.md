@@ -1,3 +1,4 @@
 # AntiDarkSword-TrollStore has MOVED / UPDATED
 # New Repo: https://github.com/EolnMsuk/AntiDarkSword 
-[<img width="1249" height="918" alt="readmeORIG" src="https://github.com/user-attachments/assets/089aac91-bebc-426a-9e3c-bef29ed28ddb" />](https://github.com/EolnMsuk/AntiDarkSword )
+[<img width="1248" height="919" alt="ReadMe" src="https://github.com/user-attachments/assets/26a882bf-592e-4d8a-9fa1-7eacfd122a88" />](https://github.com/EolnMsuk/AntiDarkSword)
+
